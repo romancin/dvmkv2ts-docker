@@ -1,0 +1,56 @@
+#!/bin/bash
+VERSION=0.1.0
+
+function check_dv_codec () {
+    echo "Calculating Dolby Vision Codec..."
+    DV_PROFILE=$(makemkvcon info file:"$@" | grep dvhe.07)
+    echo "DEBUG DV_PROFILE: $DV_PROFILE"
+    if [ "$DV_PROFILE" != "" ]
+    then
+      echo "Dolby Vision profile 07 detected..."
+      echo "Checking if MEL layer is available..."
+      DV_MEL_LAYER=$(makemkvcon info file:"$@" | grep MEL)
+      if [ "$DV_MEL_LAYER" != "" ]
+      then
+        echo "MEL layer detected!..."
+        export MEL_DETECTED=true
+      fi
+      echo "Checking if FEL layer is available..."
+      DV_FEL_LAYER=$(makemkvcon info file:"$@" | grep FEL)
+      if [ "$DV_FEL_LAYER" != "" ]
+      then
+        echo "FEL layer detected!..."
+        export FEL_DETECTED=true
+      fi
+    fi
+    echo "Dolby Vision profile 07 not detected. Skipping demuxing DV profile 07 layers..."
+}
+
+start=`date +%s`
+echo "Starting Conversions `date`"
+for f in *.mkv
+do
+  FEL_DETECTED=false
+  MEL_DETECTED=false
+  input="$f"
+  ln -s "$input" tempfile.mkv
+  check_dv_codec "tempfile.mkv"
+  if [ "$FEL_DETECTED" == "true" ] || [ "$MEL_DETECTED" == "true" ]
+  then
+    echo "Extracting Dolby Vision layers from \"$input\"..."
+    ffmpeg -v quiet -i tempfile.mkv -c:v copy -vbsf hevc_mp4toannexb -f hevc - | dovi_tool demux -
+    echo "Converting Dolby Vision Dual Layers to TS..."
+	tsmuxer.py my.meta --blu-ray-v3 BL.hevc+ EL.hevc+ tempfile.mkv+ =V - =S = ,font-name="Arial" ,font-size=65 ,font-color=0xffffffff ,bottom-offset=24 ,font-border=5 ,text-align=center ,video-width=1920 ,video-height=1080
+	tsMuxeR my.meta tempfile.iso
+    echo "Deleting temporary files..."
+    rm BL.hevc EL.hevc my.meta tempfile.mkv
+	mv tempfile.iso "${input%.mkv}.iso"
+  else
+    echo "Building TS file..."
+	tsmuxer.py my.meta --hdmv-descriptors tempfile.mkv+ =S = ,font-name="Arial" ,font-size=65 ,font-color=0xffffffff ,bottom-offset=24 ,font-border=5 ,text-align=center ,video-width=1920 ,video-height=1080
+	tsMuxeR my.meta tempfile.ts
+    echo "Deleting temporary files..."
+    rm my.meta tempfile.mkv
+	mv tempfile.ts "${input%.mkv}.ts"
+  fi
+done
