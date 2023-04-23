@@ -1,9 +1,9 @@
 FROM ubuntu
 
-ENV DOVI_TOOL_VERSION="1.5.8"
-ENV TSMUXER_VERSION="nightly-2023-01-02-02-15-09"
+ENV DOVI_TOOL_VERSION="2.0.3"
+ENV TSMUXER_VERSION="nightly-2023-04-13-02-05-26"
 ENV MAKEMKV_VERSION="1.17.2"
-ENV FFMPEG_VERSION="4.4.3"
+ENV FFMPEG_VERSION="4.4.4"
 
 RUN apt update && \
     echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections && \
